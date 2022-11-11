@@ -68,6 +68,10 @@ def get_user_by_id(id):
     cur = None
     sql = 'SELECT id, name, email from users WHERE id = %s'
 
+    credentials = token.extract_token()
+    if str(credentials['id']) != id:
+        return response.fail_not_authorize()
+
     try:
         conn = mysql.db_conn()
         cur = conn.cursor()
@@ -82,10 +86,6 @@ def get_user_by_id(id):
             'name':rawData[1], 
             'email':rawData[2]}
 
-        credentials = token.extract_token()
-        if str(credentials['id']) != id:
-            return response.fail_not_authorize()
-
         return response.success_get_data(data)
 
     except Exception as Err:
@@ -99,6 +99,10 @@ def delete_user_by_id(id):
     conn = None
     cur = None
     sql = 'delete from users where id = %s'
+
+    credentials = token.extract_token()
+    if str(credentials['id']) != id:
+        return response.fail_not_authorize()
 
     try:
         conn = mysql.db_conn()
@@ -124,6 +128,10 @@ def update_user_by_id(data, id):
     conn = None
     cur = None
     sql = 'UPDATE users SET name=%s, email=%s, password=%s WHERE id=%s'
+
+    credentials = token.extract_token()
+    if str(credentials['id']) != id:
+        return response.fail_not_authorize()
 
     try:
         conn = mysql.db_conn()
