@@ -1,8 +1,6 @@
 import bcrypt
-import app
-import json
 
-from utils import mysql, response
+from utils import mysql, response, token
 
 
 def insert_user(data):
@@ -11,12 +9,15 @@ def insert_user(data):
     sql = 'INSERT INTO users(name, email, password) VALUES (%s, %s, %s)'
 
     try:
-        conn = mysql.db_conn(app.app)
+        conn = mysql.db_conn()
         cur = conn.cursor()
         name = data['name']
         email = data['email']
         byte_password = data['password'].encode('utf-8')
         
+        if name == None or email == None or byte_password== None:
+            return response.fail_bad_request()
+
         salt = bcrypt.gensalt(rounds=16)
         hashed_password = bcrypt.hashpw(byte_password, salt).decode('utf-8')
 
@@ -42,7 +43,7 @@ def get_all_users():
     sql = 'SELECT id, name, email FROM users'
 
     try:
-        conn = mysql.db_conn(app.app)
+        conn = mysql.db_conn()
         cur = conn.cursor()
         cur.execute(sql)
         rawDataList = cur.fetchall()
@@ -68,7 +69,7 @@ def get_user_by_id(id):
     sql = 'SELECT id, name, email from users WHERE id = %s'
 
     try:
-        conn = mysql.db_conn(app.app)
+        conn = mysql.db_conn()
         cur = conn.cursor()
         cur.execute(sql, [id])
         rawData = cur.fetchone()
@@ -80,6 +81,10 @@ def get_user_by_id(id):
             'id':rawData[0],
             'name':rawData[1], 
             'email':rawData[2]}
+
+        credentials = token.extract_token()
+        if str(credentials['id']) != id:
+            return response.fail_not_authorize()
 
         return response.success_get_data(data)
 
@@ -96,7 +101,7 @@ def delete_user_by_id(id):
     sql = 'delete from users where id = %s'
 
     try:
-        conn = mysql.db_conn(app.app)
+        conn = mysql.db_conn()
         cur = conn.cursor()
         cur.execute(sql, [id])
         
@@ -121,7 +126,7 @@ def update_user_by_id(data, id):
     sql = 'UPDATE users SET name=%s, email=%s, password=%s WHERE id=%s'
 
     try:
-        conn = mysql.db_conn(app.app)
+        conn = mysql.db_conn()
         cur = conn.cursor()
         
         rawResponse = get_user_by_id(id)
@@ -146,5 +151,48 @@ def update_user_by_id(data, id):
         print(Err)
         return response.internal_service_error()
     
+    finally:
+        mysql.db_dconn(cur, conn)
+
+def login(data):
+    conn = None
+    cur = None
+    sql = 'SELECT id, name, email, password FROM users WHERE email=%s'
+
+    try:
+        conn = mysql.db_conn()
+        cur = conn.cursor()
+
+        email = data['email']
+        byte_password = data['password'].encode('utf-8')
+
+        if email == None or byte_password== None:
+            return response.fail_bad_request()
+        
+        cur.execute(sql, [email])
+        rawData = cur.fetchone()
+
+        if rawData == None:
+            return response.fail_login()
+        
+        data = {
+            'id':rawData[0],
+            'name':rawData[1],
+            'email':rawData[2],
+        }
+        byte_hashed_password = rawData[3].encode('utf-8')
+        
+        isValid = bcrypt.checkpw(byte_password, byte_hashed_password)
+
+        if isValid:
+            data['token'] = token.generate_JWT(data['email'], data['id'])
+            return response.success_login(data)
+        else:
+            return response.fail_login()
+    
+    except Exception as Err:
+        print(Err)
+        return response.internal_service_error()
+
     finally:
         mysql.db_dconn(cur, conn)
