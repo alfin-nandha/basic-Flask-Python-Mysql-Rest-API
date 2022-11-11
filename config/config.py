@@ -8,3 +8,5 @@ DB_USERNAME = os.getenv('DB_USERNAME_DEV') if FLASK_DEBUG == '1' else os.getenv(
 DB_PASSWORD = os.getenv('DB_PASSWROD_DEV') if FLASK_DEBUG == '1' else os.getenv('DB_PASSWORD')
 
 SECRET_KEY = 'my_secret'
+
+THIRD_HOST = 'http://localhost:3000'

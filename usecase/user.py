@@ -14,9 +14,6 @@ def insert_user(data):
         name = data['name']
         email = data['email']
         byte_password = data['password'].encode('utf-8')
-        
-        if name == None or email == None or byte_password== None:
-            return response.fail_bad_request()
 
         salt = bcrypt.gensalt(rounds=16)
         hashed_password = bcrypt.hashpw(byte_password, salt).decode('utf-8')
@@ -29,7 +26,9 @@ def insert_user(data):
 
     except Exception as err:
         print("exception", err)
-        if 'Duplicate' in err.msg:
+        if 'name' in str(err) or 'email' in str(err):
+            return response.fail_bad_request()
+        elif 'Duplicate' in str(err):
             return response.email_already_exist()
         else:
             return response.internal_service_error()
@@ -107,6 +106,12 @@ def delete_user_by_id(id):
     try:
         conn = mysql.db_conn()
         cur = conn.cursor()
+
+        rawResponse = get_user_by_id(id)
+
+        if rawResponse[0].get_json()['code'] == 404:
+            return response.fail_data_not_found()
+        
         cur.execute(sql, [id])
         
         if cur.rowcount == 0:
